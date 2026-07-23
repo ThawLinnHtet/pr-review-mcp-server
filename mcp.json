@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "pr-review-mcp": {
+      "command": "node",
+      "args": ["D:\\pr-review-mcp\\dist\\index.js"]
+    }
+  }
+}
