@@ -10,6 +10,7 @@ import { z } from 'zod'
 import { reviewLocal } from './tools/review-local.js'
 import { reviewPR } from './tools/review-pr.js'
 import { reviewDiff } from './tools/review-diff.js'
+import { applySuggestion } from './tools/apply-suggestion.js'
 import { getRules } from './rules/engine.js'
 
 const server = new Server(
@@ -35,6 +36,13 @@ const ReviewPRSchema = z.object({
 const ReviewDiffSchema = z.object({
   diff: z.string().describe('Raw unified diff text to review'),
   language: z.string().optional().describe('Primary language for context'),
+})
+
+const ApplySuggestionSchema = z.object({
+  filePath: z.string().describe('Absolute path to the file to modify'),
+  line: z.number().describe('Line number to apply the fix (1-indexed)'),
+  oldText: z.string().describe('Text on the line to replace'),
+  newText: z.string().describe('Replacement text'),
 })
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -89,6 +97,20 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {},
         },
       },
+      {
+        name: 'apply_suggestion',
+        description: 'Apply a suggested fix to a file at a specific line. Use this when the LLM review provides a recommendation that should be applied directly.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            filePath: { type: 'string', description: 'Absolute path to the file to modify' },
+            line: { type: 'number', description: 'Line number to apply the fix (1-indexed)' },
+            oldText: { type: 'string', description: 'Existing text on the line to replace' },
+            newText: { type: 'string', description: 'Replacement text' },
+          },
+          required: ['filePath', 'line', 'oldText', 'newText'],
+        },
+      },
     ],
   }
 })
@@ -129,6 +151,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
       }
 
+      case 'apply_suggestion': {
+        const params = ApplySuggestionSchema.parse(args)
+        const result = applySuggestion(params)
+        return {
+          content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+          isError: !result.success,
+        }
+      }
+
       default:
         throw new Error(`Unknown tool: ${name}`)
     }
@@ -142,6 +173,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 })
 
 async function main() {
+  const command = process.argv[2]
+  if (command === 'pre-commit' || command === 'fix') {
+    const { run } = await import('./cli.js')
+    await run(command, process.argv[3])
+    return
+  }
+
   const transport = new StdioServerTransport()
   await server.connect(transport)
   console.error('PR Review MCP server running on stdio')

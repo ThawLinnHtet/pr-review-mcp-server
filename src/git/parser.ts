@@ -102,6 +102,7 @@ function parseHunkLines(lines: string[], oldStart: number, newStart: number): Di
   let newLine = newStart
 
   for (const line of lines) {
+    if (line === '' || line === '\r') continue
     if (line.startsWith('+')) {
       result.push({ type: 'added', content: line.slice(1), newLineNo: newLine })
       newLine++

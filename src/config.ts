@@ -1,8 +1,10 @@
 import { config as dotenvConfig } from 'dotenv'
-import { resolve } from 'path'
+import { resolve, dirname } from 'path'
+import { fileURLToPath } from 'url'
 import type { PRReviewConfig } from './types.js'
 
-dotenvConfig({ path: resolve(import.meta.dirname!, '..', '.env'), quiet: true })
+const __dirname = dirname(fileURLToPath(import.meta.url))
+dotenvConfig({ path: resolve(__dirname, '..', '.env'), quiet: true })
 dotenvConfig({ quiet: true })
 
 function loadConfig(): PRReviewConfig {

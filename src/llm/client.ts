@@ -1,21 +1,26 @@
 import OpenAI from 'openai'
+import { z } from 'zod'
 import { config } from '../config.js'
 import { SYSTEM_PROMPT, buildReviewPrompt, buildReviewPromptWithRules } from './prompts.js'
 import type { ReviewComment } from '../types.js'
 
-interface LLMReviewResponse {
-  summary: string
-  score: number
-  comments: {
-    path: string
-    line: number
-    severity: 'error' | 'warning' | 'suggestion'
-    message: string
-    recommendation?: string
-  }[]
-  strengths: string[]
-  concerns: string[]
-}
+const LLMCommentSchema = z.object({
+  path: z.string(),
+  line: z.number(),
+  severity: z.enum(['error', 'warning', 'suggestion']),
+  message: z.string(),
+  recommendation: z.string().optional(),
+})
+
+const LLMReviewResponseSchema = z.object({
+  summary: z.string(),
+  score: z.number().min(0).max(100),
+  comments: z.array(LLMCommentSchema),
+  strengths: z.array(z.string()),
+  concerns: z.array(z.string()),
+})
+
+export type LLMReviewResponse = z.infer<typeof LLMReviewResponseSchema>
 
 function createOpenAIClient(): OpenAI {
   return new OpenAI({
@@ -55,5 +60,6 @@ export async function reviewWithLLM(
   const text = completion.choices[0]?.message?.content
   if (!text) throw new Error('No response from LLM')
 
-  return JSON.parse(text) as LLMReviewResponse
+  const parsed = JSON.parse(text)
+  return LLMReviewResponseSchema.parse(parsed)
 }

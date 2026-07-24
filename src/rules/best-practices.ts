@@ -13,7 +13,7 @@ export const bestPracticeRules: Rule[] = [
         for (const line of hunk.lines) {
           if (line.type !== 'added') continue
           const magicNumber = /\b[0-9]{4,}\b/
-          if (magicNumber.test(line.content) && !line.content.includes('const') && !line.content.includes('let ')) {
+          if (magicNumber.test(line.content) && !/^(const|let|var)\s/.test(line.content.trim())) {
             const match = line.content.match(/\b([0-9]{4,})\b/)
             if (match) {
               comments.push({

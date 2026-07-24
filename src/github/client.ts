@@ -26,33 +26,11 @@ export async function getPRDiff(
     mediaType: { format: 'diff' },
   })
 
-  return response.data as unknown as string
+  if (typeof response.data !== 'string') {
+    throw new Error('Expected diff response to be a string')
+  }
+
+  return response.data
 }
 
-export async function getPRInfo(
-  owner: string,
-  repo: string,
-  pullNumber: number,
-) {
-  const client = getClient()
-  const { data } = await client.pulls.get({
-    owner,
-    repo,
-    pull_number: pullNumber,
-  })
-  return data
-}
 
-export async function getPRFiles(
-  owner: string,
-  repo: string,
-  pullNumber: number,
-) {
-  const client = getClient()
-  const { data } = await client.pulls.listFiles({
-    owner,
-    repo,
-    pull_number: pullNumber,
-  })
-  return data
-}

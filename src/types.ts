@@ -54,14 +54,21 @@ export interface Rule {
   check: (file: DiffFile) => ReviewComment[]
 }
 
+export interface RuleOverride {
+  enabled?: string[]
+  disabled?: string[]
+  severity?: Record<string, 'error' | 'warning' | 'info'>
+}
+
 export interface PRReviewConfig {
   githubToken?: string
   openaiApiKey?: string
   openaiBaseUrl?: string
   openaiModel?: string
-  rules?: {
-    enabled: string[]
-    disabled: string[]
+  rules?: RuleOverride
+  ignore?: {
+    paths?: string[]
+    rules?: Record<string, string[]>
   }
 }
 

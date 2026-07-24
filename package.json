@@ -8,11 +8,23 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "pre-commit": "node dist/index.js pre-commit",
+    "fix": "node dist/index.js fix",
     "inspect": "npx @modelcontextprotocol/inspector node dist/index.js"
   },
   "bin": {
     "pr-review-mcp": "dist/index.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ThawLinnHtet/pr-review-mcp-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ThawLinnHtet/pr-review-mcp/issues"
+  },
+  "homepage": "https://github.com/ThawLinnHtet/pr-review-mcp#readme",
   "keywords": [
     "mcp",
     "model-context-protocol",
@@ -29,22 +41,25 @@
   },
   "files": [
     "dist/",
+    "action.yml",
     "README.md",
     "LICENSE"
   ],
   "dependencies": {
+    "@actions/core": "^3.0.1",
+    "@actions/github": "^9.1.1",
     "@modelcontextprotocol/sdk": "^1.7.0",
     "@octokit/rest": "^21.1.0",
-    "diff": "^7.0.0",
     "dotenv": "^17.4.2",
+    "minimatch": "^10.2.5",
     "openai": "^4.86.0",
     "simple-git": "^3.27.0",
     "zod": "^3.24.3"
   },
   "devDependencies": {
-    "@types/diff": "^7.0.1",
     "@types/node": "^22.13.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.10"
   }
 }

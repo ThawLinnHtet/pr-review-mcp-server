@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "pr-review-mcp": {
-      "command": "node",
-      "args": ["D:\\pr-review-mcp\\dist\\index.js"]
+      "command": "npx",
+      "args": ["-y", "pr-review-mcp"]
     }
   }
 }

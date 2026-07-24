@@ -1,0 +1,12 @@
+name: PR Review
+description: Run static analysis rules on pull requests and post findings as a comment
+author: pr-review-mcp
+branding:
+  icon: check-circle
+  color: green
+
+inputs: {}
+
+runs:
+  using: node20
+  main: dist/github/action.js

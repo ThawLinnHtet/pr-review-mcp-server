@@ -12,7 +12,7 @@ const SQL_INJECTION_PATTERNS = [
   /execute\s*\(\s*`[^`]*\$\{/i,
   /exec\s*\(\s*['"][^'"]*\+/i,
   /rawQuery|rawSql/i,
-  /\.query\(\s*['"][^'"]*\$\{/i,
+  /\.query\(\s*(['"`])[^'"`]*\$\{/i,
 ]
 
 const COMMAND_INJECTION = [
@@ -22,8 +22,10 @@ const COMMAND_INJECTION = [
 ]
 
 const INSECURE_COMPARISON = [
-  /==\s*(?:['"]|[a-zA-Z])/,
   /password\s*==\s*/,
+  /\bsecret\s*==\s*/,
+  /\btoken\s*==\s*/,
+  /\bhash\s*==\s*/,
 ]
 
 export const securityRules: Rule[] = [

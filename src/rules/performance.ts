@@ -38,7 +38,7 @@ export const performanceRules: Rule[] = [
       for (const hunk of file.hunks) {
         for (const line of hunk.lines) {
           if (line.type !== 'added') continue
-          if (/console\.(log|debug|info)\(/.test(line.content) && !/\.test\b/.test(file.path)) {
+          if (/console\.(log|debug|info)\(/.test(line.content) && !/\.(test|spec)\./.test(file.path)) {
             comments.push({
               path: file.path,
               line: line.newLineNo || 0,
@@ -87,7 +87,7 @@ export const performanceRules: Rule[] = [
     severity: 'info',
     description: 'File with very large number of changes',
     check: (file) => {
-      const comments: import('../types.js').ReviewComment[] = []
+      const comments: ReviewComment[] = []
       if (file.additions + file.deletions > 500) {
         comments.push({
           path: file.path,
