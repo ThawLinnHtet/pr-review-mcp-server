@@ -4,10 +4,11 @@ import { runRules } from '../rules/engine.js'
 import { reviewWithLLM } from '../llm/client.js'
 import { buildReviewResult } from './review-result.js'
 import { loadPRReviewConfig } from '../config-loader.js'
+import { assertReviewableDiff } from '../limits.js'
 import type { ReviewLocalParams, ReviewResult } from '../types.js'
 
 export async function reviewLocal(params: ReviewLocalParams): Promise<ReviewResult> {
-  const { repoPath, baseRef, headRef, since, until, staged } = params
+  const { repoPath, baseRef, headRef, since, until, staged, useLlm } = params
   const git = simpleGit(repoPath)
 
   let diffText: string
@@ -35,6 +36,8 @@ export async function reviewLocal(params: ReviewLocalParams): Promise<ReviewResu
     }
   }
 
+  assertReviewableDiff(diffText)
+
   const config = loadPRReviewConfig(repoPath)
   const files = parseDiff(diffText)
   const staticComments = runRules(files, {
@@ -45,11 +48,13 @@ export async function reviewLocal(params: ReviewLocalParams): Promise<ReviewResu
     ignoreRules: config.ignore?.rules,
   })
 
-  let llmResult
-  try {
-    llmResult = await reviewWithLLM(diffText, staticComments)
-  } catch {
-    llmResult = null
+  let llmResult = null
+  if (useLlm) {
+    try {
+      llmResult = await reviewWithLLM(diffText, staticComments)
+    } catch {
+      llmResult = null
+    }
   }
 
   return buildReviewResult(files, staticComments, llmResult)

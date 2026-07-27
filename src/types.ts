@@ -79,15 +79,18 @@ export interface ReviewLocalParams {
   since?: string
   until?: string
   staged?: boolean
+  useLlm?: boolean
 }
 
 export interface ReviewPRParams {
   owner: string
   repo: string
   pullNumber: number
+  useLlm?: boolean
 }
 
 export interface ReviewDiffParams {
   diff: string
   language?: string
+  useLlm?: boolean
 }

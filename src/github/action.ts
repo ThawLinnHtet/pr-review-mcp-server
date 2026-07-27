@@ -3,7 +3,7 @@ import simpleGit from 'simple-git'
 import { parseDiff } from '../git/parser.js'
 import { runRules } from '../rules/engine.js'
 import { buildReviewResult } from '../tools/review-result.js'
-import { loadPRReviewConfig } from '../config-loader.js'
+import { loadPRReviewConfigAtRef } from '../config-loader.js'
 import { Octokit } from '@octokit/rest'
 
 async function run() {
@@ -35,11 +35,13 @@ async function run() {
     return
   }
 
-  const config = loadPRReviewConfig(workspace)
+  // PR-controlled configuration must not be able to suppress the security policy.
+  const config = await loadPRReviewConfigAtRef(git, `origin/${baseRef}`)
   const files = parseDiff(diffText)
   const staticComments = runRules(files, {
     enabled: config.rules?.enabled,
     disabled: config.rules?.disabled,
+    severityOverrides: config.rules?.severity,
     ignorePaths: config.ignore?.paths,
     ignoreRules: config.ignore?.rules,
   })
@@ -48,11 +50,11 @@ async function run() {
 
   if (result.comments.length === 0) {
     core.info('No issues found')
-    return
   }
 
   const summary = [
     `## PR Review Summary`,
+    `<!-- pr-review-mcp -->`,
     ``,
     `**Score:** ${result.score}/100`,
     ``,
@@ -84,15 +86,25 @@ async function run() {
     }
   }
 
-  const body = summary.join('\n')
+  const body = truncateComment(summary.join('\n'))
 
   const octokit = new Octokit({ auth: token })
-  await octokit.issues.createComment({
+  const authenticatedUser = await octokit.users.getAuthenticated()
+  const existingComments = await octokit.paginate(octokit.issues.listComments, {
     owner,
     repo,
     issue_number: Number(prNumber),
-    body,
+    per_page: 100,
   })
+  const existingComment = existingComments.find(comment =>
+    comment.user?.id === authenticatedUser.data.id && comment.body?.includes('<!-- pr-review-mcp -->'),
+  )
+
+  if (existingComment) {
+    await octokit.issues.updateComment({ owner, repo, comment_id: existingComment.id, body })
+  } else {
+    await octokit.issues.createComment({ owner, repo, issue_number: Number(prNumber), body })
+  }
 
   core.info(`Posted review comment on PR #${prNumber}`)
 }
@@ -100,3 +112,10 @@ async function run() {
 run().catch((err) => {
   core.setFailed(err instanceof Error ? err.message : String(err))
 })
+
+function truncateComment(body: string): string {
+  const maxLength = 60_000
+  if (body.length <= maxLength) return body
+  const suffix = '\n\n_Findings truncated because the GitHub comment size limit was reached._'
+  return body.slice(0, maxLength - suffix.length) + suffix
+}

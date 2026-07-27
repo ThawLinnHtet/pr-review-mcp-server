@@ -2,6 +2,9 @@
 .env.*
 !.env.example
 node_modules/
-dist/
+dist/*
+!dist/github/
+dist/github/*
+!dist/github/action.cjs
 *.tgz
 npm-debug.log*

@@ -4,10 +4,11 @@ import { runRules } from '../rules/engine.js'
 import { reviewWithLLM } from '../llm/client.js'
 import { buildReviewResult } from './review-result.js'
 import { loadPRReviewConfig } from '../config-loader.js'
+import { assertReviewableDiff } from '../limits.js'
 import type { ReviewPRParams, ReviewResult } from '../types.js'
 
 export async function reviewPR(params: ReviewPRParams): Promise<ReviewResult> {
-  const { owner, repo, pullNumber } = params
+  const { owner, repo, pullNumber, useLlm } = params
 
   const diffText = await getPRDiff(owner, repo, pullNumber)
 
@@ -22,6 +23,8 @@ export async function reviewPR(params: ReviewPRParams): Promise<ReviewResult> {
     }
   }
 
+  assertReviewableDiff(diffText)
+
   const config = loadPRReviewConfig()
   const files = parseDiff(diffText)
   const staticComments = runRules(files, {
@@ -32,11 +35,13 @@ export async function reviewPR(params: ReviewPRParams): Promise<ReviewResult> {
     ignoreRules: config.ignore?.rules,
   })
 
-  let llmResult
-  try {
-    llmResult = await reviewWithLLM(diffText, staticComments)
-  } catch {
-    llmResult = null
+  let llmResult = null
+  if (useLlm) {
+    try {
+      llmResult = await reviewWithLLM(diffText, staticComments)
+    } catch {
+      llmResult = null
+    }
   }
 
   return buildReviewResult(files, staticComments, llmResult)

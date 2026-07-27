@@ -2,6 +2,7 @@ import OpenAI from 'openai'
 import { z } from 'zod'
 import { config } from '../config.js'
 import { SYSTEM_PROMPT, buildReviewPrompt, buildReviewPromptWithRules } from './prompts.js'
+import { assertReviewableDiff } from '../limits.js'
 import type { ReviewComment } from '../types.js'
 
 const LLMCommentSchema = z.object({
@@ -36,6 +37,7 @@ export async function reviewWithLLM(
   diff: string,
   ruleResults?: ReviewComment[],
 ): Promise<LLMReviewResponse> {
+  assertReviewableDiff(diff)
   const client = createOpenAIClient()
 
   const ruleText = ruleResults?.length

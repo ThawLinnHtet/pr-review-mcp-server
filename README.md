@@ -3,14 +3,14 @@
 [![CI](https://github.com/ThawLinnHtet/pr-review-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/ThawLinnHtet/pr-review-mcp-server/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/pr-review-mcp.svg)](https://www.npmjs.com/package/pr-review-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](package.json)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)](package.json)
 
 MCP server for pull request review — static analysis rules + optional LLM review via OpenRouter or any OpenAI-compatible API.
 
 ## Features
 
 - **13 built-in static analysis rules** — security, performance, and best-practice checks
-- **Optional LLM review** — deeper analysis via OpenRouter, OpenAI, or any compatible API
+- **Opt-in LLM review** — deeper analysis via OpenRouter, OpenAI, or any compatible API
 - **Three review modes**: local git changes, GitHub PRs, or raw diff text
 - **GitHub Action** — auto-review every PR push and post a comment
 - **Pre-commit hook** — block commits with `error`-severity findings
@@ -28,7 +28,7 @@ MCP server for pull request review — static analysis rules + optional LLM revi
 | `review_pr` | Fetch and review a GitHub pull request by number |
 | `review_diff` | Review raw unified diff text from any source |
 | `list_rules` | List all static analysis rules |
-| `apply_suggestion` | Apply an LLM-recommended fix to a file |
+| `apply_suggestion` | Apply an LLM-recommended fix inside `PR_REVIEW_ROOT` |
 
 ## Static Analysis Rules
 
@@ -59,9 +59,9 @@ MCP server for pull request review — static analysis rules + optional LLM revi
 
 ## Prerequisites
 
-- **Node.js 18+**
+- **Node.js 20+**
 - npm or compatible package manager
-- A GitHub token (`repo` scope) for PR review
+- A fine-grained GitHub token with pull-request read access for PR review
 - (Optional) An OpenRouter or OpenAI API key for LLM review
 
 ## Installation
@@ -108,6 +108,10 @@ Create a `.env` file in the working directory (the MCP client will inherit it):
 # Required for GitHub PR review
 GITHUB_TOKEN=ghp_your-token-here
 
+# Required before apply_suggestion can modify files.
+# This must be the absolute path to the repository that the MCP client may change.
+PR_REVIEW_ROOT=/absolute/path/to/your/repository
+
 # --- LLM review (optional) ---
 # Use with OpenRouter (default):
 OPENROUTER_API_KEY=sk-or-v1-your-key
@@ -120,7 +124,7 @@ OPENROUTER_MODEL=openai/gpt-4o-mini
 # OPENAI_MODEL=gpt-4o-mini
 ```
 
-**LLM is optional.** Without any API keys, only static analysis runs.
+**LLM review is opt-in.** Static analysis is always local. A diff is sent to the configured provider only when the caller passes `useLlm: true`; without API keys, that optional pass is skipped.
 
 ## Usage
 
@@ -130,6 +134,7 @@ Talk to your MCP client naturally:
 - *"Review the diff between main and my-feature"* — branch diff review
 - *"Review PR #42 in owner/repo using pr-review"* — GitHub PR review
 - *"Use review_diff to check this code change"* — paste any diff
+- *"Use review_diff with useLlm: true for a deeper review"* — explicitly sends the diff to the configured LLM provider
 - *"Apply the fix suggestion for app.ts:42"* — applies an LLM-recommended fix
 
 ## GitHub Action (CI)
@@ -145,16 +150,20 @@ on:
 jobs:
   review:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
-      - run: npx -y pr-review-mcp
+          persist-credentials: false
+      - uses: ThawLinnHtet/pr-review-mcp-server@<full-release-commit-sha>
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-The server runs in CI mode inside the action context, computes the diff against the base branch, runs all static analysis rules, and posts a review comment on the PR with the findings.
+Replace `<full-release-commit-sha>` with the immutable SHA of a published release. The Action computes the diff against the base branch, runs static analysis rules, and creates or updates one PR comment with the findings. Its policy is read from the trusted base revision, not from the PR checkout.
 
 ## Pre-commit Hook
 

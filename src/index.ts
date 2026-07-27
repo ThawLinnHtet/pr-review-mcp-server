@@ -25,22 +25,25 @@ const ReviewLocalSchema = z.object({
   since: z.string().optional().describe('Git revision range start (e.g., HEAD~5)'),
   until: z.string().optional().describe('Git revision range end (e.g., HEAD)'),
   staged: z.boolean().optional().describe('Review staged changes only'),
+  useLlm: z.boolean().optional().describe('Send the diff to the configured external LLM provider (disabled by default)'),
 })
 
 const ReviewPRSchema = z.object({
   owner: z.string().describe('GitHub repository owner'),
   repo: z.string().describe('GitHub repository name'),
   pullNumber: z.number().describe('Pull request number'),
+  useLlm: z.boolean().optional().describe('Send the diff to the configured external LLM provider (disabled by default)'),
 })
 
 const ReviewDiffSchema = z.object({
   diff: z.string().describe('Raw unified diff text to review'),
   language: z.string().optional().describe('Primary language for context'),
+  useLlm: z.boolean().optional().describe('Send the diff to the configured external LLM provider (disabled by default)'),
 })
 
 const ApplySuggestionSchema = z.object({
   filePath: z.string().describe('Absolute path to the file to modify'),
-  line: z.number().describe('Line number to apply the fix (1-indexed)'),
+  line: z.number().int().positive().describe('Line number to apply the fix (1-indexed)'),
   oldText: z.string().describe('Text on the line to replace'),
   newText: z.string().describe('Replacement text'),
 })
@@ -61,6 +64,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             since: { type: 'string', description: 'Git revision range start (e.g., HEAD~5)' },
             until: { type: 'string', description: 'Git revision range end (e.g., HEAD)' },
             staged: { type: 'boolean', description: 'Review staged changes only' },
+            useLlm: { type: 'boolean', description: 'Send the diff to the configured external LLM provider (disabled by default)' },
           },
         },
       },
@@ -73,6 +77,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             owner: { type: 'string', description: 'GitHub repository owner' },
             repo: { type: 'string', description: 'GitHub repository name' },
             pullNumber: { type: 'number', description: 'Pull request number' },
+            useLlm: { type: 'boolean', description: 'Send the diff to the configured external LLM provider (disabled by default)' },
           },
           required: ['owner', 'repo', 'pullNumber'],
         },
@@ -85,6 +90,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             diff: { type: 'string', description: 'Raw unified diff text to review' },
             language: { type: 'string', description: 'Primary programming language for context' },
+            useLlm: { type: 'boolean', description: 'Send the diff to the configured external LLM provider (disabled by default)' },
           },
           required: ['diff'],
         },
@@ -153,7 +159,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'apply_suggestion': {
         const params = ApplySuggestionSchema.parse(args)
-        const result = applySuggestion(params)
+        const workspaceRoot = process.env.PR_REVIEW_ROOT
+        if (!workspaceRoot) {
+          throw new Error('PR_REVIEW_ROOT must be set before applying suggestions')
+        }
+        const result = applySuggestion(params, workspaceRoot)
         return {
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
           isError: !result.success,

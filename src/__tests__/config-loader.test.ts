@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { loadPRReviewConfig } from '../config-loader.js'
+import { loadPRReviewConfig, loadPRReviewConfigAtRef } from '../config-loader.js'
 import { writeFileSync, unlinkSync, mkdirSync } from 'fs'
 import { resolve } from 'path'
 import { tmpdir } from 'os'
@@ -56,5 +56,27 @@ describe('loadPRReviewConfig', () => {
       const config = loadPRReviewConfig(dir)
       expect(config.rules?.enabled).toEqual(['SEC-001'])
     })
+  })
+
+  it('rejects malformed policy values instead of passing them to the rule engine', () => {
+    withTempDir('invalid', (dir) => {
+      writeFileSync(resolve(dir, '.pr-reviewrc'), JSON.stringify({
+        ignore: { paths: 'all-files' },
+      }))
+
+      expect(loadPRReviewConfig(dir)).toEqual({})
+    })
+  })
+
+  it('loads Action policy from the requested trusted revision', async () => {
+    const show = vi.fn().mockResolvedValue(JSON.stringify({
+      rules: { enabled: ['SEC-001'] },
+    }))
+    const git = { show } as never
+
+    const config = await loadPRReviewConfigAtRef(git, 'origin/main')
+
+    expect(show).toHaveBeenCalledWith(['origin/main:.pr-reviewrc'])
+    expect(config.rules?.enabled).toEqual(['SEC-001'])
   })
 })

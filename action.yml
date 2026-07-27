@@ -9,4 +9,4 @@ inputs: {}
 
 runs:
   using: node20
-  main: dist/github/action.js
+  main: dist/github/action.cjs
